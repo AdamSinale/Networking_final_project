@@ -1,0 +1,50 @@
+import socket
+
+# needs to import Quick and Flags from quick.py
+# from quick import Quick, Flags
+
+
+class Sender:
+    def __init__(self, ip, port):
+        self.__ip = ip
+        self.__port = port
+        self.__sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    def handshake(self):
+        #flg = Flags(0, 1, 0, 0)
+        #pack = Quick(b'hello', 5, flg, 0)
+        self.__sock.sendto(b'hello', (self.__ip, self.__port))
+        self.__sock.recvfrom(1024)
+        self.udp_send(b'ack')
+
+    def udp_send(self, data):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.sendto(data, (self.__ip, self.__port))
+        sock.close()
+        self.receive_ack()
+
+    def receive_ack(self):
+        data, addr = self.__sock.recvfrom(1024)
+        print(data.decode())
+
+
+class Receiver:
+    def __init__(self, ip, port):
+        self.__ip = ip
+        self.__port = port
+        self.__sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    def handshake(self):
+        self.__sock.recvfrom(1024)
+        self.__sock.sendto(b'ack', (self.__ip, self.__port))
+        self.udp_receive()
+
+    def udp_receive(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.bind((self.__ip, self.__port))
+        data, addr = sock.recvfrom(1024)
+        print(data.decode())
+        self.send_ack()
+
+    def send_ack(self):
+        self.__sock.sendto(b'ack', (self.__ip, self.__port))
