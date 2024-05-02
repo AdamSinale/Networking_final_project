@@ -1,7 +1,7 @@
 import socket
 
 # needs to import Quic and Flags from quic.py
-from quic import Quic, Flags
+# from quic import Quic, Flags
 
 
 class Sender:
