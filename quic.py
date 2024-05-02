@@ -27,16 +27,6 @@ class Flags:
         self.data = data  # second to second-to-last of the stream
         self.fin = fin    # last frame of the stream
 
-# Class representing a client
-class Client:
-    def __init__(self, ip, port, id_num):
-        self.ip = ip
-        self.port = port
-        self.id_num = id_num
-
-    def connect(self):
-        pass
-
 
 
 
