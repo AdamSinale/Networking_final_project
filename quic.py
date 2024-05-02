@@ -20,12 +20,15 @@ class Quic:
 # @param syn - 1 if the packet is a syn packet, else 0.
 # @param fin - 1 if the packet is closing request packet, else 0.
 # @param data - 1 if the packet contains data, else 0.
+
+
 class Flags:
     def __init__(self, ack, syn, fin, data):
         self.ack = ack    # first frame of the stream
         self.syn = syn    # first frame of the stream
         self.data = data  # second to second-to-last of the stream
         self.fin = fin    # last frame of the stream
+
 
 # Class representing a client
 class Client:
