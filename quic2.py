@@ -1,7 +1,7 @@
 import socket
 
-# needs to import Quick and Flags from quick.py
-# from quick import Quick, Flags
+# needs to import Quic and Flags from quic.py
+# from quic import Quic, Flags
 
 
 class Sender:
@@ -11,8 +11,8 @@ class Sender:
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     def handshake(self):
-        #flg = Flags(0, 1, 0, 0)
-        #pack = Quick(b'hello', 5, flg, 0)
+        flg = Flags(0, 1, 0, 0)
+        pack = Quic('hello', 5, flg, 0)
         self.__sock.sendto(b'hello', (self.__ip, self.__port))
         self.__sock.recvfrom(1024)
         self.udp_send(b'ack')
