@@ -15,12 +15,28 @@ class Quic:
         self.flags = flags
         self.packet_number = packet_number
 
+    # method to serialize a packet
+    def serialize(self):
+        return f"{self.packet_number}:{self.flags.ack}:{self.flags.syn}:{self.flags.fin}:{self.flags.data}:{self.data_size}:{self.data}"
+
+    # method to deserialize packet, splitted with ':'.
+    def deserialize(self, packet_data: str):
+        parts = packet_data.split(":")
+        packet_number = int(parts[0])
+        ack = int(parts[1])
+        syn = int(parts[2])
+        fin = int(parts[3])
+        data = int(parts[4])
+        data_size = int(parts[5])
+        data = ":".join(parts[6:])
+        flags = Flags(ack, syn, fin, data)
+        return Quic(data, data_size, flags, packet_number)
+
 # Class representing QUIC packet's flags
 # @param ack - 1 if the packet is a connection request packet, else 0.
 # @param syn - 1 if the packet is a syn packet, else 0.
 # @param fin - 1 if the packet is closing request packet, else 0.
 # @param data - 1 if the packet contains data, else 0.
-
 
 class Flags:
     def __init__(self, ack, syn, fin, data):
