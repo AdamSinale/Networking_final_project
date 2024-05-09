@@ -1,15 +1,17 @@
 from quic2 import *
+import Quic
 
 def main():
     client = Sender("127.0.0.1", SERVER_PORT)
+    flags = QuicHeaderFlags(ack=0,syn=1,data=0,fin=0)
+    header = QuicHeader(flags=flags, packet_number=1234, connection_id=1)
+    frames = [QuicFrame(1,0, 5, b"Hello"), QuicFrame(1,0, 4, b"Sup?")]
 
-    for i in range(10):
-        send_message = "Trying to send message"
-        pack = Quic(send_message, len(send_message), Flags(0, 0, 0, 1), i)
-        client.send(pack.serialize())
-        client.receive_ack()
-    close_packet = Quic("Closing", len("Closing"), Flags(0, 0, 1, 0), 11)
-    client.send(close_packet.serialize())
+    quic_packet = QuicPacket(header, frames)
+    client.send(quic_packet)
+
+        
+        
 
 if __name__ == "__main__":
     main()

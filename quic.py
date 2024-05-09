@@ -1,36 +1,10 @@
-# This file contains function relatable to sender and receiver.
+# This file describes QUIC Packet structure.
+# Author - Tomer Shor
+
 from socket import *
 
 
-# Class representing quic packet.
-# @param data - the data sent.
-# @param data_size - the size of the data in bytes.
-# @param flags - packet's flags.
-# @param packet_number - packet's unique sequence number.
-# @param encryption_key - set to zero since no implementation required.
-class Quic:
-    def __init__(self, data, data_size, flags, packet_number):
-        self.data = data
-        self.data_size = data_size
-        self.flags = flags
-        self.packet_number = packet_number
 
-    # method to serialize a packet
-    def serialize(self):
-        return f"{self.packet_number}:{self.flags.ack}:{self.flags.syn}:{self.flags.fin}:{self.flags.data}:{self.data_size}:{self.data}"
-
-    # method to deserialize packet, splitted with ':'.
-    def deserialize(self, packet_data: str):
-        parts = packet_data.split(":")
-        packet_number = int(parts[0])
-        ack = int(parts[1])
-        syn = int(parts[2])
-        fin = int(parts[3])
-        data = int(parts[4])
-        data_size = int(parts[5])
-        data = ":".join(parts[6:])
-        flags = Flags(ack, syn, fin, data)
-        return Quic(data, data_size, flags, packet_number)
 
 # Class representing QUIC packet's flags
 # @param ack - 1 if the packet is a connection request packet, else 0.
@@ -45,17 +19,54 @@ class Flags:
         self.data = data  # second to second-to-last of the stream
         self.fin = fin    # last frame of the stream
 
+# Class representing Protect Payload as described in the article.
+# @param frames - A list of frames to be sent with the packet.
+class ProtectedPayload:
+    def __init__(self, frames : list) -> None:
+        self.frames = frames
 
-# Class representing a client
-class Client:
-    def __init__(self, ip, port, id_num):
-        self.ip = ip
-        self.port = port
-        self.id_num = id_num
 
-    def connect(self):
-        pass
+# Class frame representing packet frame as describes in the article.
+# @param -
+class Frame:
+    def __init__(self, StreamID, Offset, Length, StreamData) -> None:
+        self.StreamID = StreamID
+        self.Offset = Offset
+        self.Length = Length
+        self.StreamData = StreamData
 
+
+# Class representing quic packet.
+# @param data - the data sent.
+# @param data_size - the size of the data in bytes.
+# @param flags - packet's flags.
+# @param packet_number - packet's unique sequence number.
+# @param encryption_key - set to zero since no implementation required.
+class Quic:
+    def __init__(self, Destination : tuple, flags : Flags, packet_number : int, protectedPayload : ProtectedPayload):
+        self.Destination = Destination
+        self.flags = flags
+        self.packet_number = packet_number
+        self.ProtectedPayload = protectedPayload
+
+    # method to serialize a packet
+    def serialize(self):
+        frames_str = ":".join([f"{frame.StreamID},{frame.Offset},{frame.Length},{frame.StreamData}" for frame in self.ProtectedPayload.frames])
+        return f"{self.packet_number}:{self.flags.ack}:{self.flags.syn}:{self.flags.fin}:{self.flags.data}:{frames_str}"
+
+    @staticmethod
+    def deserialize(packet_data: str):
+        parts = packet_data.split(":")
+        packet_number = int(parts[0])
+        ack = int(parts[1])
+        syn = int(parts[2])
+        fin = int(parts[3])
+        data = int(parts[4])
+        frames_data = parts[5].split(",")
+        frames = [Frame(int(frame_data[0]), int(frame_data[1]), int(frame_data[2]), frame_data[3]) for frame_data in [frame.split(",") for frame in frames_data]]
+        flags = Flags(ack, syn, fin, data)
+        protectedPayload = ProtectedPayload(frames)
+        return Quic(None, flags, packet_number, protectedPayload)
 
 
 
