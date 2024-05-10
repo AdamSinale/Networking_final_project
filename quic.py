@@ -1,4 +1,7 @@
-import struct
+
+def length_by_syn(syn):
+    return 2 if syn==1 else 20
+stream_id_size = 2
 
 class QuicPacket:
     def __init__(self, header, frames):
@@ -7,20 +10,20 @@ class QuicPacket:
     def serialize(self):
         packet_bytes = self.header.serialize()
         for frame in self.payload:
-            packet_bytes += frame.serialize()
+            packet_bytes += frame.serialize(self.header.flags.syn)
         return packet_bytes
     @classmethod
     def deserialize(cls, serialized_data):
         header_length = 9  # Assuming header length is fixed
-        header_data = serialized_data[:header_length]
-        header = QuicHeader.deserialize(header_data)
+        header = QuicHeader.deserialize(serialized_data[:header_length])
         payload_data = serialized_data[header_length:]
+        length_size = length_by_syn(header.flags.syn)
         frames = []
         while payload_data:
-            frame_length = int.from_bytes(payload_data[:2], byteorder='big')
-            frame_data = payload_data[2:2 + frame_length]
-            frames.append(QuicFrame.deserialize(frame_data))
-            payload_data = payload_data[2 + frame_length:]
+            frame_length = int.from_bytes(payload_data[stream_id_size + length_size : stream_id_size + 2*length_size], byteorder='big')
+            frame_data = payload_data[ : 2*length_size + frame_length + stream_id_size]
+            frames.append(QuicFrame.deserialize(frame_data, header.flags.syn))
+            payload_data = payload_data[2*length_size + frame_length + stream_id_size : ]
         return cls(header, frames)
 class QuicHeader:
     def __init__(self, flags, packet_number, connection_id):
@@ -58,53 +61,51 @@ class QuicHeaderFlags:
         return cls(ack, syn, data, fin)
 
 class QuicFrame:
-    def __init__(self, stream_id, length, data):
+    def __init__(self, stream_id, offset, length, data):
         self.stream_id = stream_id
+        self.offset = offset
         self.length = length
         self.data = data
-    def serialize(self):
-        stream_id_bytes = self.stream_id.to_bytes(4, byteorder='big')  # Assuming stream_id is a 32-bit integer
-        length_bytes = self.length.to_bytes(2, byteorder='big')  # Assuming length is a 16-bit integer
-        return stream_id_bytes + length_bytes + self.data
+    def serialize(self, syn):
+        stream_id_bytes = self.stream_id.to_bytes(stream_id_size, byteorder='big')  # Assuming stream_id is a 16-bit integer
+        offset_bytes = self.offset.to_bytes(length_by_syn(syn), byteorder='big')
+        length_bytes = self.length.to_bytes(length_by_syn(syn), byteorder='big')
+        return stream_id_bytes + offset_bytes + length_bytes + self.data.encode('utf-8')
     @classmethod
-    def deserialize(cls, serialized_data):
-        stream_id = int.from_bytes(serialized_data[:4], byteorder='big')  # Deserialize stream_id
-        length = int.from_bytes(serialized_data[4:6], byteorder='big')  # Deserialize length
-        data = serialized_data[6:]  # Extract data
-        return cls(stream_id, length, data)
+    def deserialize(cls, serialized_data, syn):
+        stream_id = int.from_bytes(serialized_data[:stream_id_size], byteorder='big')  # Deserialize stream_id
+        offset = int.from_bytes(serialized_data[stream_id_size:length_by_syn(syn) + stream_id_size], byteorder='big') # Deserialize length
+        length = int.from_bytes(serialized_data[length_by_syn(syn) + stream_id_size : 2*length_by_syn(syn) + stream_id_size], byteorder='big') # Deserialize length
+        data = serialized_data[2*length_by_syn(syn) + stream_id_size:]  # Extract data
+        return cls(stream_id, offset, length, data.decode('utf-8'))
 
-flags = QuicHeaderFlags(ack=0,syn=1,data=0,fin=0)
+flags = QuicHeaderFlags(ack=0,syn=0,data=1,fin=0)
 header = QuicHeader(flags=flags, packet_number=1234, connection_id=1)
-frames = [QuicFrame(1, 5, b"Hello"), QuicFrame(1, 4, b"Sup?")]
+frames = [QuicFrame(1, 100, 1000, "Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!"),
+          QuicFrame(2, 100, 1000, "Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!Sup?!")]
+# frames = [QuicFrame(1, 0, 5, "Hello")]
+packet = QuicPacket(header, frames)
 
-
-s_flags = flags.serialize()
-d_flags = QuicHeaderFlags.deserialize(s_flags)
-s_header = header.serialize()
-d_header = QuicHeader.deserialize(s_header)
-s_frame1 = frames[0].serialize()
-d_frame1 = QuicFrame.deserialize(s_frame1)
-s_frame2 = frames[1].serialize()
-d_frame2 = QuicFrame.deserialize(s_frame2)
-f_packet = QuicPacket(header, frames)
-s_packet = f_packet.serialize()
+s_packet = packet.serialize()
 f_packet = QuicPacket.deserialize(s_packet)
-print("O Flags:", flags.__dict__)
-print("S Flags:", s_flags)
-print("D Flags:", d_flags.__dict__)
+
+print("O Packet:", packet.__dict__)
+print("S Packet:", s_packet)
+print("D Packet:", f_packet.__dict__)
 print()
-print("O Header:", header.__dict__)
-print("S Header:", s_header)
-print("D Header:", d_header.__dict__)
+print("O Header:", packet.header.__dict__)
+print("S Header:", packet.header.serialize())
+print("D Header:", f_packet.header.__dict__)
 print()
-print("O Frame:", frames[0].__dict__)
-print("S Frame:", s_frame1)
-print("D Frame:", d_frame1.__dict__)
+print("O Flags:", packet.header.flags.__dict__)
+print("S Flags:", packet.header.flags.serialize())
+print("D Flags:", f_packet.header.flags.__dict__)
 print()
-print("O Frame:", frames[1].__dict__)
-print("S Frame:", s_frame2)
-print("D Frame:", d_frame2.__dict__)
+print("O Frame:", packet.payload[0].__dict__)
+print("S Frame:", packet.payload[0].serialize(0))
+print("D Frame:", f_packet.payload[0].__dict__)
 print()
-print("O Header:", f_packet.__dict__)
-print("S Header:", s_packet)
-print("D Header:", f_packet.__dict__)
+print("O Frame:", packet.payload[1].__dict__)
+print("S Frame:", packet.payload[1].serialize(0))
+print("D Frame:", f_packet.payload[1].__dict__)
+print()
