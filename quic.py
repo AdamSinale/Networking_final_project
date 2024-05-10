@@ -1,4 +1,4 @@
-# This file contains function relatable to sender and receiver.
+ # This file contains function relatable to sender and receiver.
 from socket import *
 
 
