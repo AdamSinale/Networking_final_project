@@ -18,14 +18,16 @@ RETRY = 5
 
 class Sender:
     def __init__(self, ip, port):
-        logging.info('Initializing Broker')
         self.addr = (ip, port)
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.streams = random.randint(1,10)
         self.size_of_frame = random.randint(1000,2000)
         self.packet_count = 0
 
-        # Waits for ack for MAX_WAIT_TIME seconds.
+
+    # Waits for ack for MAX_WAIT_TIME seconds.
+    # @param sequence number - sequence number of the packet.
+    # return True if received an ack from the server, False if didnt receive ack after MAX_WAIT_TIME seconds.
     def wait_for_ack(self, sequence_number):
         start_time = time.time()
         while True:
@@ -35,7 +37,7 @@ class Sender:
             packet = packet.decode(FORMAT)
             recv_packet = Quic.desirialize(packet)
             if recv_packet.header.flags.syn and recv_packet.header.flags.ack == 1 and recv_packet.header.packet_number == sequence_number:
-                print("received ack for handShake packet.")
+                print("Received ack for handShake packet.")
                 return True
             if recv_packet.header.flags.syn and recv_packet.header.packet_number == sequence_number:
                 return True
@@ -43,14 +45,20 @@ class Sender:
         print("Was not able to receive ack. Try again \n")
         return False
 
-    # Hand shake 
+
+
+    # Function that sends syn request to establish communication with the server.
+    # The function sends packet with syn ack = 1, then waits for confirmation from the server.
+    # In our implementation, the server address is fixed.
+    # returns True if recevied positve answer from the server, False if couldnt receive response after RETRY attempts.
     def handshake(self):
-        for i in range(0, RETRY):
-            flags = QuicHeaderFlags(ack = 1,syn= 0,data= 0,fin= 0)
+        for i in range(RETRY):
+            flags = QuicHeaderFlags(ack = 0,syn= 1,data= 0,fin= 0)
             header = QuicHeader(flags=flags, packet_number = self.packet_count, connection_id=SERVER_ADDR)
             send_packet = QuicPacket(header=header)
-            self.__sock.sendto(send_packet.serialize.encode(FORMAT), SERVER_ADDR)
+            self.__sock.sendto(send_packet.serialize, SERVER_ADDR)
             if self.wait_for_ack(self.packet_count):
+                self.packet_count += 1
                 return True
         print("Not able to open a connection with the server. Try to send again.\n")
         return False
@@ -58,14 +66,40 @@ class Sender:
         
 
     # Haven't implemented it fully yet
-    def send(self, packet):
-        send_packet = Quic.QuicPacket.serialize(packet)
-        self.__sock.sendto(send_packet, SERVER_ADDR)
-        print(f"sent packet of size {len(send_packet)}")
+    def quic_send(self, data):
+        packet_number = self.packet_count
+        offsets = [0 for _ in range(len(data))]
+        flags = QuicHeaderFlags(ack=0, syn=0, data=1, fin=0)
 
-    # Haven't implemented it fully yet
-    def receive(self):
-        return self.__sock.recvfrom(1024)
+        while len(data) > 0:
+            frames_num = round(len(data)*0.6)
+            header = QuicHeader(flags=flags, packet_number=packet_number, connection_id=1)
+            frames = []
+
+            packet_data = random.sample(data, frames_num)
+            for frames_id, frames_data in packet_data:
+                chunck_data = frames_data[offsets[frames_id] : offsets[frames_id] + frame_size]
+                frames.append(QuicFrame(frames_id, offsets[frames_id], len(chunck_data), chunck_data))
+                offsets[frames_id] += frame_size
+                if(offsets[frames_id] >= data_len_by_id(data, frames_id)):
+                    data.remove((frames_id,frames_data))
+            packet = QuicPacket(header, frames)
+            serialized_packet = packet.serialize()
+            deserialized_packet = QuicPacket.deserialize(packet.serialize())
+            self.sock.sendto(packet.serialize(), (self.ip, self.port))
+            packet_number += 1
+            # self.receive_ack()
+        self.sock.close()
+    
+    # Generates sets of data. The size of the sets are equal.
+    # @param num_sets - The number of sets to generate.
+    # @param size_in_mb - The size of each set in MB (Mega Byte).
+    def generate_data_sets(num_sets=10, size_in_mb=1):
+        data_sets = []
+        for i in range(num_sets):
+            data = ''.join(random.choices(string.ascii_letters + string.digits, k=1024 * 1024 * size_in_mb))
+            data_sets.append((i, data))
+        return data_sets
     
 
 
