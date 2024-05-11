@@ -27,6 +27,7 @@ class Sender:
 
     # Waits for ack for MAX_WAIT_TIME seconds.
     # @param sequence number - sequence number of the packet.
+    # works on both handshake packets and data packets.
     # return True if received an ack from the server, False if didnt receive ack after MAX_WAIT_TIME seconds.
     def wait_for_ack(self, sequence_number):
         start_time = time.time()
@@ -34,13 +35,16 @@ class Sender:
             if time.time() - start_time >= MAX_WAIT_TIME:
                 break
             packet, add = self.__sock.recvfrom(1024)
-            packet = packet.decode(FORMAT)
-            recv_packet = Quic.desirialize(packet)
+            recv_packet = Quic.QuicPacket.deserialize(packet)
+            # if its a response for handshake packet.
             if recv_packet.header.flags.syn and recv_packet.header.flags.ack == 1 and recv_packet.header.packet_number == sequence_number:
                 print("Received ack for handShake packet.")
                 return True
-            if recv_packet.header.flags.syn and recv_packet.header.packet_number == sequence_number:
+            # if its a response for data packet.
+            elif recv_packet.header.flags.ack and recv_packet.header.packet_number == sequence_number:
                 return True
+            else:
+                return False
 
         print("Was not able to receive ack. Try again \n")
         return False
@@ -109,7 +113,6 @@ class Receiver:
         self.__addr = (host, port)
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP
         self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.running = True
         print("Socket created")
         self.__sock.bind(self.__addr)
         self.files = []
@@ -139,31 +142,50 @@ class Receiver:
     # Listens for packets and opens new thread when packet arrives
     def listen(self):
         print(f"Listening on {self.__addr[0]}:{self.__addr[1]}")
-        #while self.running:
-        packet, client_addr = self.__sock.recvfrom(BUFFER_SIZE)  # accept communication
-        # packet = packet.decode(FORMAT)
-        # reconstract the packet.
-        recv_packet = Quic.QuicPacket.deserialize(packet)
-        
-        print(f"Received data for packet {recv_packet.header.packet_number}: of size ")
-        print(recv_packet)
-        # If received a disconnect message, close.
-        if recv_packet.header.flags.fin == DISCONNECT_MSG:
-            print(f"Received close packet!")
-            self.running = False
+        if self.wait_for_connection == False:
+            print("Cannot open communication with the client. try again.")
             return
-        # for each frame received, add 
-        for frame in recv_packet.payload:
-            if frame.stream_id >= len(self.files):
-            # Extend the list to have enough elements
-                self.files.extend([""] * (frame.stream_id - len(self.files) + 1))
-            self.files[frame.stream_id] += frame.data.decode(FORMAT)      
-            print(f"Received {client_addr} {frame.data}")
+        while True:
+            packet, client_addr = self.__sock.recvfrom(BUFFER_SIZE)  # accept communication
+            recv_packet = Quic.QuicPacket.deserialize(packet)
+            
+            print(f"Received data for packet {recv_packet.header.packet_number}: of size ")
+            print(recv_packet)
+            # If received a disconnect message, close.
+            if recv_packet.header.flags.fin == DISCONNECT_MSG:
+                print(f"Received close packet!")
+                break
+            # for each frame received, add 
+            for frame in recv_packet.payload:
+                if frame.stream_id >= len(self.files):
+                # Extend the list to have enough elements
+                    self.files.extend([""] * (frame.stream_id - len(self.files) + 1))
+                self.files[frame.stream_id] += frame.data.decode(FORMAT)      
+                print(f"Received {client_addr} {frame.data}")
 
         # when it stops.
         print("Closing socket! Program finished.")
         self.__sock.close()
 
-    # Haven't implemented it yet
-    def send_ack(self, ):
-        pass
+
+    # This function receives syn request and returns syn ack packet to the client.
+    # Return True if received syn paacket, False if was able to receive a packet after MAX_WAIT_TIME * 10 seconds.
+    def wait_for_connection(self):
+        start_time = time.time()
+        while True:
+            if time.time() - start_time >= MAX_WAIT_TIME * 10:
+                break
+            packet, addr = self.__sock.recvfrom(1024)
+            packet = Quic.QuicPacket.deserialize(packet)
+            if packet.header.flags.syn and packet.header.packet_number == 1:    # Make sure it's connection packet
+                flags = QuicHeaderFlags(1,1,0,0)
+                header = (flags, packet.header.packet_number, addr)
+                send_packet = Quic.QuicPacket(header=header)
+                self.__sock.sendto(send_packet.serialize(), addr)
+                print("Sent syn ack packet\n")
+                return True
+        print("Was not able to receive syn request. Try again \n")
+        return False
+            
+
+

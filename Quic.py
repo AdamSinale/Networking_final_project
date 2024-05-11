@@ -1,7 +1,7 @@
 import struct
 
 class QuicPacket:
-    def __init__(self, header, payload):
+    def __init__(self, header , payload):
         self.header = header
         self.payload = payload
     def serialize(self):
