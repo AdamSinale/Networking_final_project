@@ -71,33 +71,5 @@ class Receiver:
         send_packet = QuicPacket(header, frames)
         self.__sock.sendto(send_packet.serialize(), client_addr)
 
-    # def listen(self):
-    #     print(f"Listening on {self.addr[0]}:{self.addr[1]}")
-    #     if self.wait_for_connection == False:
-    #         print("Cannot open communication with the client. try again.")
-    #         return
-    #     while True:
-    #         packet, client_addr = self.receive()
-    #
-    #         print(f"Received data for packet {packet.header.packet_number}: of size ")
-    #         print(packet)
-    #         # If received a disconnect message, close.
-    #         if packet.header.flags.fin == DISCONNECT_MSG:
-    #             print(f"Received close packet!")
-    #             break
-    #         # for each frame received, add
-    #         for frame in packet.payload:
-    #             if frame.stream_id >= len(self.files):
-    #                 # Extend the list to have enough elements
-    #                 self.files.extend([""] * (frame.stream_id - len(self.files) + 1))
-    #             self.files[frame.stream_id] += frame.data
-    #             print(f"Received {client_addr} {frame.data}")
-    #
-    #     # when it stops.
-    #     print("Closing socket! Program finished.")
-    #     self.__sock.close()
-
-    # Haven't implemented it yet
-
 receiver = Receiver('127.0.0.1', 1111)
 receiver.listen()

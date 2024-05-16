@@ -46,28 +46,30 @@ class Sender:
         self.sock.sendto(packet.serialize(), (self.ip, self.port))
         # self.wait_for_ack()
 
+    def create_packet(self, packet_number, data, offsets):
+        flags = QuicHeaderFlags(ack=0, syn=0, data=1, fin=0)            # packet flags for data
+        space_left = 0                                                  # set the space left for when we have small data left to send from the file
+        frames_num = round(len(data)*0.6)                               # 60% of streams will be send
+        header = QuicHeader(flags=flags, packet_number=packet_number, connection_id=1)  # the header of the packet
+        frames = []                                                     # the frames list we will send
+        packet_data = random.sample(data, frames_num)                   # the 60% will be randomly chosen
+        for frames_id, frames_data in packet_data:                      # for each chosen stream
+            if offsets[frames_id] > len(frames_data) - frame_size:      # if we have smaller than set length to send
+                space_left += len(frames_data) - offsets[frames_id]     # add the length we have left
+            chunck_data = frames_data[offsets[frames_id]: offsets[frames_id] + frame_size]  # we will take the defined size data from the current offset
+            frames.append(QuicFrame(frames_id, offsets[frames_id], len(chunck_data), chunck_data))  # we will add it as frame with stream-id, offset, length, data
+            offsets[frames_id] += frame_size                            # set the offset to next
+            if (offsets[frames_id] >= data_len_by_id(data, frames_id)): # 
+                data.remove((frames_id, frames_data))
+        if space_left > 0:
+            frames = add_to_min_frame(frames, space_left, offsets, packet_data)
+        return QuicPacket(header, frames), data, offsets
+
     def udp_send(self, data):
         packet_number = 2
         offsets = [0 for _ in range(len(data))]                  # array of current chuck sent
-        flags = QuicHeaderFlags(ack=0, syn=0, data=1, fin=0)     # packet flags for data
-        space_left = 0
         while len(data) > 0:                                     # while there is data left to send
-            frames_num = round(len(data)*0.6)                    # 60% of streams will be send
-            header = QuicHeader(flags=flags, packet_number=packet_number, connection_id=1)
-            frames = []
-            packet_data = random.sample(data, frames_num)       # the 60% will be randomly chosen
-            for frames_id, frames_data in packet_data:          # for each chosen stream
-                if offsets[frames_id] > len(frames_data)-frame_size:
-                    space_left += len(frames_data) - offsets[frames_id]
-                chunck_data = frames_data[offsets[frames_id] : offsets[frames_id] + frame_size]         # we will take the defined size data from the current offset
-                frames.append(QuicFrame(frames_id, offsets[frames_id], len(chunck_data), chunck_data))  # we will add it as frame with stream-id, offset, length, data
-                offsets[frames_id] += frame_size                                                        # set the offset to next
-                if(offsets[frames_id] >= data_len_by_id(data, frames_id)):
-                    data.remove((frames_id,frames_data))
-            if space_left > 0:
-                frames = add_to_min_frame(frames, space_left, offsets, packet_data)
-                space_left = 0
-            packet = QuicPacket(header, frames)
+            packet, data, offsets = self.create_packet(packet_number, data, offsets)
             self.sock.sendto(packet.serialize(), (self.ip, self.port))
             time.sleep(0.0005)
             packet_number += 1
@@ -85,11 +87,9 @@ class Sender:
             if recv_packet.header.flags.syn and recv_packet.header.flags.ack:
                 print("Received ack for handShake packet.")
                 return True
-            # if its a response for data packet.
-            elif recv_packet.header.flags.ack:
+            elif recv_packet.header.flags.ack:  # if its a response for data packet.
                 return True
-            else:
-                return False
+            return False
 
         print("Was not able to receive ack. Try again \n")
         return False
@@ -97,8 +97,8 @@ class Sender:
 def generate_data_sets(num_sets=10, size_in_mb=1):
     data_sets = []
     for i in range(num_sets):
-        data = ''.join(random.choices(string.ascii_letters + string.digits, k=1024 * 1024 * size_in_mb + 13))
-        data_sets.append((i, data))
+        data_set = ''.join(random.choices(string.ascii_letters+string.digits, k=1024*1024*size_in_mb+13))
+        data_sets.append((i, data_set))
     return data_sets
 
 sender = Sender('127.0.0.1', 1111)
