@@ -6,7 +6,7 @@ import logging
 import time
 import socket
 FORMAT = 'utf-8'
-BUFFER_SIZE = (1024+1000) * 3
+BUFFER_SIZE = (1024+1000) * 5
 DISCONNECT_MSG = 1
 SERVER_PORT = 5558
 MAX_WAIT_TIME = 5
@@ -19,11 +19,6 @@ class Receiver:
         self.__sock.bind(self.__addr)
         self.files = []
         print("Socket created")
-
-    # Haven't implemented it yet
-    def send(self, packet: QuicPacket, client_ip):
-        logging.info(f"Sending {packet.data} to {client_ip}")
-        self.__sock.sendto(packet.serialize().encode(FORMAT), client_ip)
 
     # Haven't implemented it yet
     def receive(self):
@@ -61,8 +56,8 @@ class Receiver:
                 self.files[frame.stream_id] += frame.data
             self.send_data_ack(client_addr)
         self.__sock.close()
-        for file in self.files:
-            print(len(file))
+        # for file in self.files:
+        #     print(len(file))
 
     def send_data_ack(self, client_addr):
         flags = QuicHeaderFlags(ack=1, syn=0, data=0, fin=0)
@@ -70,6 +65,3 @@ class Receiver:
         frames = [QuicFrame(1, 0, 2, "Hi")]
         send_packet = QuicPacket(header, frames)
         self.__sock.sendto(send_packet.serialize(), client_addr)
-
-receiver = Receiver('127.0.0.1', 1111)
-receiver.listen()
