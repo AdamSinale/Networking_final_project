@@ -14,9 +14,7 @@ def main():
         receiver_thread.start()
 
         # Perform handshake and send data in the main thread
-        sender.handshake()
-        data = sender.generate_data_sets(cur_data_num, 1)
-        sender.udp_send(data)
+        data = sender.start(cur_data_num)
 
         # Wait for receiver thread to finish
         receiver_thread.join()

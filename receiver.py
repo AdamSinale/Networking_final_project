@@ -1,10 +1,14 @@
-import socket
+# This file shows an implementation of a receiver that
+# handles multiple streams concept.
 
-# needs to import Quic and Flags from quic.py
+# Written by Tomer Shor at the 10th of May 2024.
+# NOTE: This file contian
+
 from quic import *
 import logging
 import time
 import socket
+# CONSTS
 FORMAT = 'utf-8'
 BUFFER_SIZE = (1024+1000) * 5
 DISCONNECT_MSG = 1
@@ -18,7 +22,7 @@ class Receiver:
         self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.__sock.bind(self.__addr)
         self.files = []
-        print("Socket created")
+        print(f"Listening on IP:{self.__addr[0]}  Port: {self.__addr[1]}")
 
     # Haven't implemented it yet
     def receive(self):
