@@ -15,9 +15,9 @@ def add_to_min_frame(frames, space_left, offsets, packet_data):
         if frame.offset < min_frame.offset:
             min_frame = frame
             min_index = i
-    min_frame.data += packet_data[min_index][1][offsets[min_frame.stream_id]: offsets[min_frame.stream_id] + space_left]
+    min_frame.data += packet_data[min_index][1][offsets[min_frame.stream_id-1]: offsets[min_frame.stream_id-1] + space_left]
     min_frame.length = len(min_frame.data)
-    offsets[min_frame.stream_id] += space_left
+    offsets[min_frame.stream_id-1] += space_left
     return frames
 # Function to find the length of the data with the given ID
 def data_len_by_id(data, id):
@@ -84,7 +84,7 @@ class Sender:
             if offsets[frames_id] > len(frames_data) - frame_size:      # if we have smaller than set length to send
                 space_left += len(frames_data) - offsets[frames_id]     # add the length we have left
             chunck_data = frames_data[offsets[frames_id]: offsets[frames_id] + frame_size]  # we will take the defined size data from the current offset
-            frames.append(QuicFrame(frames_id, offsets[frames_id], len(chunck_data), chunck_data))  # we will add it as frame with stream-id, offset, length, data
+            frames.append(QuicFrame(frames_id+1, offsets[frames_id], len(chunck_data), chunck_data))  # we will add it as frame with stream-id, offset, length, data
             offsets[frames_id] += frame_size                            # set the offset to next
             if (offsets[frames_id] >= data_len_by_id(data, frames_id)): #
                 data.remove((frames_id, frames_data))
