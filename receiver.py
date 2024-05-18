@@ -22,10 +22,12 @@ def print_stats(bytes_received_per_sec, packets_received_per_sec, bytes_received
     for i in range(1,len(bytes_received_per_sec)):
         print("------------------------------------------------------------------------------")
         print("The total num of bytes in stream number "+str(i)+" is " + str(bytes_received[i]))
+        print("The total num of packets in stream number "+str(i)+" is " + str(packets_num[i]))
         avg_bytes_per_sec = bytes_received_per_sec[i] / packets_num[i]
         print("The average num of bytes per second in stream number "+str(i)+" is " + str(avg_bytes_per_sec))
         avg_packets_per_sec = packets_received_per_sec[i] / packets_num[i]
         print("The average num of packets per second in stream number "+str(i)+" is " + str(avg_packets_per_sec))
+    return avg_bytes_per_sec, avg_packets_per_sec
 
 class Receiver:
     def __init__(self, host, port):
@@ -100,7 +102,7 @@ class Receiver:
             packets_num[0] += 1
             self.send_data_ack(client_addr)
         self.__sock.close()
-        print_stats(bytes_received_per_sec, packets_received_per_sec, bytes_received, packets_num)
+        return print_stats(bytes_received_per_sec, packets_received_per_sec, bytes_received, packets_num)
 
     # A degenerated function to send ack. The function will send ack no matter what has been received,
     # since we have been told to assume each packet will completely arrive.

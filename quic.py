@@ -8,7 +8,7 @@ stream_id_size = 2
 
 # This function return the length of a packet depends on whether it contains data or not.
 def length_by_data(data):
-    return 2 if data==0 else 20
+    return 2 if data==0 else 21
 
 # Class representing a QUIC packet.
 # @param header - The packet's header as implemented in QuicHeader class.
