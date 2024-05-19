@@ -23,8 +23,9 @@ class TestSenderReceiver(unittest.TestCase):
         return data
 
     def global_test(self, data):
+        send_data = [(i,data[i]) for i in range(len(data))]
         receiver_thread = threading.Thread(target=self.run_receiver, args=(host, port))
-        sender_thread = threading.Thread(target=self.run_sender, args=(host, port, data))
+        sender_thread = threading.Thread(target=self.run_sender, args=(host, port, send_data))
 
         receiver_thread.start()
         time.sleep(1)
@@ -35,25 +36,29 @@ class TestSenderReceiver(unittest.TestCase):
         received_data = self.receiver.files
         self.assertEqual(data, received_data)
 
-    def test_send_receive_short_data(self):
-        data = [(0,b'hello')]
+    def test_short_data(self):
+        data = ["hello"]
         self.global_test(data)
 
-    def test_send_receive_medium_data(self):
-        data = [(0,b'a'*1024)]  # 1 KB of data
+    def test_medium_data(self):
+        data = ["a"*1024]  # 1 KB of data
         self.global_test(data)
 
-    def test_send_receive_long_data(self):
-        data = [(0,b'a'*1024*1024)]  # 1 MB of data
+    def test_long_data(self):
+        data = ["a"*1024*1024]  # 1 MB of data
         self.global_test(data)
 
-    def test_send_receive_empty_data(self):
-        data = [(0,b'')]
+    def test_empty_data(self):
+        data = ["", "kjfhsdjkfsjkdfs", "fsdfsf"*1024*1024]
         self.global_test(data)
 
-    def test_send_receive_non_bytes_data(self):
-        with self.assertRaises(ValueError):
-            self.global_test("string data")
+    def test_empty_data_only(self):
+        data = ["" for _ in range(5)]
+        self.global_test(data)
+
+    def test_many_small_streams(self):
+        data = ["dsfdsfds" for _ in range(100)]
+        self.global_test(data)
 
 if __name__ == '__main__':
     unittest.main()

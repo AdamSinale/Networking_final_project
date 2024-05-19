@@ -87,11 +87,11 @@ class Receiver:
                 break
             for frame in packet.payload:
                 if frame.stream_id >= len(self.files):
-                    self.files.extend([""] * (frame.stream_id - len(self.files) + 1))
+                    self.files.extend([""] * (frame.stream_id - len(self.files)))
                     packets_received.extend([0] * (frame.stream_id - len(packets_received) + 1))
                     bytes_received.extend([0] * (frame.stream_id - len(bytes_received) + 1))
                     time_taken.extend([0] * (frame.stream_id - len(time_taken) + 1))
-                self.files[frame.stream_id] += frame.data
+                self.files[frame.stream_id-1] += frame.data
             finish_time = time.perf_counter()
             for frame in packet.payload:
                 bytes_received[frame.stream_id] += len(frame.data)
