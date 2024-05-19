@@ -7,6 +7,13 @@ host = '127.0.0.1'
 port = 1111
 
 class TestSenderReceiver(unittest.TestCase):
+    def remove_empty_data(self, data):
+        new_data = []
+        for file in data:
+            if isinstance(file, str) and len(file) > 0:
+                new_data.append(file)
+        return new_data
+
     def run_receiver(self, host, port):
         self.receiver = Receiver(host, port)
         self.receiver.listen()
@@ -23,6 +30,7 @@ class TestSenderReceiver(unittest.TestCase):
         return data
 
     def global_test(self, data):
+        data = self.remove_empty_data(data)
         send_data = [(i,data[i]) for i in range(len(data))]
         receiver_thread = threading.Thread(target=self.run_receiver, args=(host, port))
         sender_thread = threading.Thread(target=self.run_sender, args=(host, port, send_data))
@@ -40,20 +48,32 @@ class TestSenderReceiver(unittest.TestCase):
         data = ["hello"]
         self.global_test(data)
 
-    def test_medium_data(self):
-        data = ["a"*1024]  # 1 KB of data
+    def test_many_medium(self):
+        data = ["a"*1024 for _ in range(10)]  # 1 KB of data
         self.global_test(data)
 
     def test_long_data(self):
         data = ["a"*1024*1024]  # 1 MB of data
         self.global_test(data)
 
-    def test_empty_data(self):
-        data = ["", "kjfhsdjkfsjkdfs", "fsdfsf"*1024*1024]
+    def test_empty_data(self):  # set to delete it
+        data = ["", "kjfhsdjkfsjkdfs", "fsdfsf"*1024*1024, "", "kjfhsdjkfsjkdfs", "fsdfsf"*1024*1024]
         self.global_test(data)
 
-    def test_empty_data_only(self):
+    def test_none_string_data(self):  # set to delete it
+        data = [69 for _ in range(10)]
+        self.global_test(data)
+
+    def test_with_none_string_data(self):  # set to delete it
+        data = [69, "kjfhsdjkfsjkdfs", "fsdfsf"*1024*1024, "", 69, "kjfhsdjkfsjkdfs"]
+        self.global_test(data)
+
+    def test_empty_data_only(self):  # set to delete it
         data = ["" for _ in range(5)]
+        self.global_test(data)
+
+    def test_zero_files(self):
+        data = []
         self.global_test(data)
 
     def test_many_small_streams(self):

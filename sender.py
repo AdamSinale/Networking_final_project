@@ -3,7 +3,6 @@ import socket
 import random
 import string
 import time
-
 # needs to import Quic from quic.py
 from quic import *
 
@@ -35,7 +34,7 @@ def generate_data_sets(num_sets=10, size_in_mb=1):
 def remove_empty_files(data):
     new_data = []
     for file in data:
-        if len(file) > 0:
+        if isinstance(file[1], str) and len(file[1]) > 0:
             new_data.append(file)
     return new_data
 packet_size = random.randint(1000, 2000)
@@ -102,7 +101,7 @@ class Sender:
     def udp_send(self, sent_data):
         data = remove_empty_files(sent_data)
         packet_number = 2
-        offsets = [0 for _ in range(len(data))]                  # array of current chuck sent
+        offsets = [0 for _ in range(len(sent_data))]                  # array of current chuck sent
         while len(data) > 0:                                     # while there is data left to send
             packet, data, offsets = self.create_packet(packet_number, data, offsets)
             self.sock.sendto(packet.serialize(), (self.ip, self.port))
