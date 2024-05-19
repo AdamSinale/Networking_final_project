@@ -13,19 +13,24 @@ BUFFER_SIZE = (1024+1000) * 5
 DISCONNECT_MSG = 1
 MAX_WAIT_TIME = 5
 
-def print_stats(bytes_received_per_sec, packets_received_per_sec, bytes_received, packets_num):
+def print_stats(bytes_received, packets_received, time_taken):
+    for i in range(len(time_taken)):
+        if time_taken[i] == 0:
+            return 0, 0
+    if len(time_taken) == 0:
+        return 0,0
     print("------------------------------------------------------------------------------")
-    avg_bytes_per_sec = bytes_received_per_sec[0] / packets_num[0]
+    avg_bytes_per_sec = bytes_received[0] / time_taken[0]
     print("The average num of bytes per second is " + str(avg_bytes_per_sec))
-    avg_packets_per_sec = packets_received_per_sec[0] / packets_num[0]
+    avg_packets_per_sec = packets_received[0] / time_taken[0]
     print("The average num of packets per second is " + str(avg_packets_per_sec))
-    for i in range(1,len(bytes_received_per_sec)):
+    for i in range(1,len(bytes_received)):
         print("------------------------------------------------------------------------------")
         print("The total num of bytes in stream number "+str(i)+" is " + str(bytes_received[i]))
-        print("The total num of packets in stream number "+str(i)+" is " + str(packets_num[i]))
-        avg_bytes_per_sec = bytes_received_per_sec[i] / packets_num[i]
+        print("The total num of packets in stream number "+str(i)+" is " + str(packets_received[i]))
+        avg_bytes_per_sec = bytes_received[i] / time_taken[i]
         print("The average num of bytes per second in stream number "+str(i)+" is " + str(avg_bytes_per_sec))
-        avg_packets_per_sec = packets_received_per_sec[i] / packets_num[i]
+        avg_packets_per_sec = packets_received[i] / time_taken[i]
         print("The average num of packets per second in stream number "+str(i)+" is " + str(avg_packets_per_sec))
     return avg_bytes_per_sec, avg_packets_per_sec
 
@@ -70,10 +75,9 @@ class Receiver:
     # The function will receive packets until it will receive a closing packet (aka flasg.fin == 1)
     # The data of each frame will be added to the matching data container recognized by steamID.
     def listen(self):
-        bytes_received_per_sec = []
-        packets_received_per_sec = []
         bytes_received = []
-        packets_num = []
+        packets_received = []
+        time_taken = []
         if not self.wait_for_connection():
             return
         while True:
@@ -84,25 +88,21 @@ class Receiver:
             for frame in packet.payload:
                 if frame.stream_id >= len(self.files):
                     self.files.extend([""] * (frame.stream_id - len(self.files) + 1))
-                    bytes_received_per_sec.extend([0] * (frame.stream_id - len(bytes_received_per_sec) + 1))
-                    packets_received_per_sec.extend([0] * (frame.stream_id - len(packets_received_per_sec) + 1))
+                    packets_received.extend([0] * (frame.stream_id - len(packets_received) + 1))
                     bytes_received.extend([0] * (frame.stream_id - len(bytes_received) + 1))
-                    packets_num.extend([0] * (frame.stream_id - len(packets_num) + 1))
+                    time_taken.extend([0] * (frame.stream_id - len(time_taken) + 1))
                 self.files[frame.stream_id] += frame.data
             finish_time = time.perf_counter()
-            taken_time = finish_time - start_time
             for frame in packet.payload:
-                bytes_received_per_sec[frame.stream_id] += len(frame.data) / taken_time
-                packets_received_per_sec[frame.stream_id] += 1 / taken_time
                 bytes_received[frame.stream_id] += len(frame.data)
-                packets_num[frame.stream_id] += 1
-                bytes_received_per_sec[0] += len(frame.data) / taken_time
+                packets_received[frame.stream_id] += 1
+                time_taken[frame.stream_id] += finish_time - start_time
                 bytes_received[0] += len(frame.data)
-            packets_received_per_sec[0] += 1 / taken_time
-            packets_num[0] += 1
+            time_taken[0] += finish_time - start_time
+            packets_received[0] += 1
             self.send_data_ack(client_addr)
         self.__sock.close()
-        return print_stats(bytes_received_per_sec, packets_received_per_sec, bytes_received, packets_num)
+        return print_stats(bytes_received, packets_received, time_taken)
 
     # A degenerated function to send ack. The function will send ack no matter what has been received,
     # since we have been told to assume each packet will completely arrive.

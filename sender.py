@@ -32,7 +32,12 @@ def generate_data_sets(num_sets=10, size_in_mb=1):
         data_set = ''.join(random.choices(string.ascii_letters + string.digits, k=1024 * 1024 * size_in_mb + 13))
         data_sets.append((i, data_set))
     return data_sets
-
+def remove_empty_files(data):
+    new_data = []
+    for file in data:
+        if len(file) > 0:
+            new_data.append(file)
+    return new_data
 packet_size = random.randint(1000, 2000)
 MAX_WAIT_TIME = 5
 packet_number = 1
@@ -95,7 +100,7 @@ class Sender:
     # Function to send data to the server.
     # The function sends 60% of the data in random order - as asked.
     def udp_send(self, sent_data):
-        data = list(sent_data)
+        data = remove_empty_files(sent_data)
         packet_number = 2
         offsets = [0 for _ in range(len(data))]                  # array of current chuck sent
         while len(data) > 0:                                     # while there is data left to send

@@ -5,7 +5,6 @@
 
 # Written by: Tomer Shor at the 16\05\2024
 
-
 import threading
 import matplotlib.pyplot as plt
 from receiver import *
