@@ -3,7 +3,6 @@ import socket
 import random
 import string
 import time
-
 # needs to import Quic from quic.py
 from quic import *
 
@@ -15,9 +14,9 @@ def add_to_min_frame(frames, space_left, offsets, packet_data):
         if frame.offset < min_frame.offset:
             min_frame = frame
             min_index = i
-    min_frame.data += packet_data[min_index][1][offsets[min_frame.stream_id]: offsets[min_frame.stream_id] + space_left]
+    min_frame.data += packet_data[min_index][1][offsets[min_frame.stream_id-1]: offsets[min_frame.stream_id-1] + space_left]
     min_frame.length = len(min_frame.data)
-    offsets[min_frame.stream_id] += space_left
+    offsets[min_frame.stream_id-1] += space_left
     return frames
 # Function to find the length of the data with the given ID
 def data_len_by_id(data, id):
@@ -32,7 +31,12 @@ def generate_data_sets(num_sets=10, size_in_mb=1):
         data_set = ''.join(random.choices(string.ascii_letters + string.digits, k=1024 * 1024 * size_in_mb + 13))
         data_sets.append((i, data_set))
     return data_sets
-
+def remove_empty_files(data):
+    new_data = []
+    for file in data:
+        if isinstance(file[1], str) and len(file[1]) > 0:
+            new_data.append(file)
+    return new_data
 packet_size = random.randint(1000, 2000)
 MAX_WAIT_TIME = 5
 packet_number = 1
@@ -84,7 +88,7 @@ class Sender:
             if offsets[frames_id] > len(frames_data) - frame_size:      # if we have smaller than set length to send
                 space_left += len(frames_data) - offsets[frames_id]     # add the length we have left
             chunck_data = frames_data[offsets[frames_id]: offsets[frames_id] + frame_size]  # we will take the defined size data from the current offset
-            frames.append(QuicFrame(frames_id, offsets[frames_id], len(chunck_data), chunck_data))  # we will add it as frame with stream-id, offset, length, data
+            frames.append(QuicFrame(frames_id+1, offsets[frames_id], len(chunck_data), chunck_data))  # we will add it as frame with stream-id, offset, length, data
             offsets[frames_id] += frame_size                            # set the offset to next
             if (offsets[frames_id] >= data_len_by_id(data, frames_id)): #
                 data.remove((frames_id, frames_data))
@@ -95,9 +99,9 @@ class Sender:
     # Function to send data to the server.
     # The function sends 60% of the data in random order - as asked.
     def udp_send(self, sent_data):
-        data = list(sent_data)
+        data = remove_empty_files(sent_data)
         packet_number = 2
-        offsets = [0 for _ in range(len(data))]                  # array of current chuck sent
+        offsets = [0 for _ in range(len(sent_data))]                  # array of current chuck sent
         while len(data) > 0:                                     # while there is data left to send
             packet, data, offsets = self.create_packet(packet_number, data, offsets)
             self.sock.sendto(packet.serialize(), (self.ip, self.port))
